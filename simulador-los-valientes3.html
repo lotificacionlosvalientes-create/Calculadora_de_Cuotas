@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Pagos — Lotificación Los Valientes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2240; --navy2:#1a3560;
+    --teal:#0a7c68; --teal-light:#13a68a; --teal-pale:#e0f5f1;
+    --gold:#c8920a; --gold-light:#f0c040; --gold-pale:#fef9e7;
+    --white:#ffffff; --gray-50:#f8fafc; --gray-100:#f1f5f9;
+    --gray-200:#e2e8f0; --gray-300:#cbd5e1; --gray-500:#64748b; --gray-700:#334155;
+    --red:#c0392b; --red-pale:#fdecea;
+    --radius:12px;
+    --shadow:0 4px 24px rgba(15,34,64,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'DM Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-700);
+    padding-bottom: 60px;
+  }
+
+  .header{
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 60%, #0a4a3c 100%);
+    padding: 22px 20px;
+    text-align:center;
+    box-shadow: 0 4px 30px rgba(15,34,64,0.3);
+  }
+  .header h1{
+    color:#fff; font-size: 19px; font-weight:700; letter-spacing:-0.2px;
+  }
+  .header p{
+    color: rgba(255,255,255,0.65); font-size:12px; margin-top:4px;
+  }
+
+  .wrap{ max-width: 480px; margin: 0 auto; padding: 20px 16px 0; }
+
+  .card{
+    background:#fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow:hidden;
+  }
+  .card-header{
+    padding: 13px 18px;
+    font-weight:600; font-size:13px;
+    color: var(--navy);
+    background: var(--gray-100);
+    border-bottom: 1px solid var(--gray-200);
+    display:flex; align-items:center; gap:7px;
+  }
+  .card-body{ padding: 16px 18px; }
+
+  /* Bloque grid */
+  .bloque-grid{ display:flex; gap:8px; flex-wrap:wrap; }
+  .bloque-btn{
+    flex:1; min-width:52px;
+    padding: 12px 0;
+    border: 2px solid var(--gray-200);
+    background: #fff;
+    border-radius: 10px;
+    font-weight:700; font-size:15px;
+    color: var(--gray-700);
+    cursor:pointer;
+    transition: all 0.15s ease;
+  }
+  .bloque-btn:hover{ border-color: var(--teal-light); }
+  .bloque-btn.active{ background: var(--navy); border-color: var(--navy); color:#fff; }
+
+  .hint{ font-size:11px; color: var(--gray-500); text-align:center; margin-top:10px; }
+
+  /* Lote grid */
+  .lote-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+  .lote-btn{
+    padding: 9px 4px;
+    border: 1.5px solid var(--gray-200);
+    background:#fff;
+    border-radius: 8px;
+    font-weight:600; font-size:13px;
+    color: var(--gray-700);
+    cursor:pointer;
+    transition: all 0.15s ease;
+  }
+  .lote-btn:hover{ border-color: var(--gold); }
+  .lote-btn.active{ background: var(--teal); border-color: var(--teal); color:#fff; }
+  .lote-empty{
+    grid-column: 1/-1; color: var(--gray-500); font-size:13px; text-align:center; padding: 10px 0;
+  }
+  .lote-btn.vendido{
+    background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-300);
+    cursor: not-allowed; position:relative; display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .lote-btn.vendido:hover{ border-color: var(--gray-200); }
+  .vendido-tag{
+    font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em;
+    color: var(--red); background: var(--red-pale); padding:1px 5px; border-radius:4px;
+  }
+  .legend{ display:flex; gap:14px; justify-content:center; margin-top:12px; font-size:11px; color: var(--gray-500); }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+  .legend .i-disp{ background: var(--teal); }
+  .legend .i-vend{ background: var(--gray-300); }
+
+  .lot-detail{
+    margin-top:12px;
+    background: var(--teal-pale);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size:12px;
+    color: var(--navy);
+    display:none;
+  }
+  .lot-detail b{ font-family:'DM Mono', monospace; }
+
+  /* Field */
+  .field{ margin-bottom:16px; }
+  .field:last-child{ margin-bottom:0; }
+  .field label{
+    display:block; font-size:12px; font-weight:600;
+    color: var(--gray-500); text-transform:uppercase; letter-spacing:0.03em;
+    margin-bottom:7px;
+  }
+  .field input[type="number"], .field input[type="date"]{
+    width:100%; padding:11px 12px;
+    border: 1.5px solid var(--gray-200); border-radius: 8px;
+    font-family:'DM Mono', monospace; font-size:15px; font-weight:600;
+    color: var(--navy); outline:none;
+  }
+  .field input:focus{ border-color: var(--teal-light); }
+  .field-hint{ font-size:11px; color: var(--gray-500); margin-top:6px; }
+
+  .prima-warn{
+    margin-top:7px; font-size:12px; font-weight:600; padding:6px 10px; border-radius:6px; display:none;
+  }
+  .prima-warn.ok{ background: var(--teal-pale); color: var(--teal); display:block; }
+  .prima-warn.err{ background: var(--red-pale); color: var(--red); display:block; }
+
+  /* Modo selector */
+  .modo-selector{ display:flex; gap:8px; }
+  .modo-btn{
+    flex:1; padding:12px 8px; border-radius:9px; border:1.5px solid var(--gray-200);
+    background:#fff; font-size:12px; font-weight:600; color: var(--gray-700); cursor:pointer; text-align:center;
+    line-height:1.5;
+  }
+  .modo-btn .badge{ display:block; font-size:10px; font-weight:500; color: var(--gray-500); margin-top:2px; }
+  .modo-btn.active-cuota{ background: var(--navy); border-color: var(--navy); color:#fff; }
+  .modo-btn.active-cuota .badge{ color: rgba(255,255,255,0.65); }
+  .modo-btn.active-meses{ background: var(--teal); border-color: var(--teal); color:#fff; }
+  .modo-btn.active-meses .badge{ color: rgba(255,255,255,0.75); }
+  .modo-desc{
+    margin-top:10px; font-size:12px; color: var(--gray-500); background: var(--gray-100);
+    padding:10px 12px; border-radius:8px; line-height:1.5;
+  }
+  .modo-desc strong{ color: var(--navy); }
+
+  /* KPIs */
+  .kpi-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .kpi{
+    background: var(--gray-100); border-radius:9px; padding:12px 12px; border: 1px solid var(--gray-200);
+  }
+  .kpi.highlight{ background: var(--gold-pale); border-color: var(--gold-light); grid-column: 1/-1; }
+  .kpi.highlight-teal{ background: var(--teal-pale); border-color: var(--teal-light); }
+  .kpi-label{ font-size:10px; text-transform:uppercase; letter-spacing:0.03em; color: var(--gray-500); font-weight:600; }
+  .kpi-value{ font-family:'DM Mono', monospace; font-weight:700; font-size:18px; color: var(--navy); margin-top:3px; }
+  .kpi.highlight .kpi-value{ font-size:24px; color:#7a5c00; }
+  .kpi-sub{ font-size:10px; color: var(--gray-500); margin-top:2px; }
+
+  .ahorro-box{
+    margin-top:10px; grid-column: 1/-1;
+    background: linear-gradient(135deg,#0a2040,#0a3a20);
+    border-radius:9px; padding:12px 14px; display:none;
+  }
+  .ahorro-box .k{ font-size:10px; color: rgba(255,255,255,0.6); text-transform:uppercase; font-weight:600; }
+  .ahorro-box .v{ font-family:'DM Mono', monospace; color:#4ade80; font-size:16px; font-weight:700; margin-top:2px; }
+  .ahorro-box .s{ font-size:11px; color: rgba(255,255,255,0.55); margin-top:2px; }
+
+  .empty-state{ text-align:center; padding: 26px 10px; color: var(--gray-500); }
+  .empty-state .icon{ font-size:30px; margin-bottom:8px; }
+
+  /* CTA */
+  .cta{
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    background: var(--teal); color:#fff; text-decoration:none;
+    font-weight:700; font-size:15px; padding:15px; border-radius:10px;
+    transition: background 0.15s ease;
+  }
+  .cta:hover{ background: var(--teal-light); }
+  .cta[aria-disabled="true"]{ background: var(--gray-300); pointer-events:none; }
+
+  .footer-info{
+    background: var(--navy); color: var(--gray-100);
+    border-radius: var(--radius); padding: 18px 20px; font-size:13px; line-height:1.9;
+  }
+  .footer-info .fi-title{ font-weight:700; color: var(--gold-light); font-size:14px; margin-bottom:6px; }
+  .footer-info a{ color:#fff; font-weight:600; text-decoration:none; }
+
+  .disclaimer{ font-size:11px; color: var(--gray-500); text-align:center; margin-top:16px; line-height:1.6; }
+
+  /* ===== Ubicación / mapa satelital ===== */
+  .loc-map{
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    margin-bottom: 10px;
+  }
+  .loc-address{
+    font-size: 13px; color: var(--gray-700); font-weight:500;
+    margin-bottom: 12px; text-align:center;
+  }
+  .loc-btns{ display:flex; gap:8px; }
+  .loc-btn{
+    flex:1; text-align:center;
+    padding: 11px 0;
+    border-radius: 8px;
+    font-weight:600; font-size:13px;
+    text-decoration:none;
+    transition: filter 0.12s ease;
+  }
+  .loc-btn:hover{ filter: brightness(1.06); }
+  .loc-btn.gmaps{ background: var(--teal-pale); color: var(--teal); border:1px solid var(--teal-light); }
+  .loc-btn.waze{ background: var(--gold-pale); color: var(--gold); border:1px solid var(--gold-light); }
+
+  .view-selector{ display:flex; gap:8px; margin-bottom:14px; }
+  .view-btn{
+    flex:1;
+    padding: 10px 0;
+    border: 2px solid var(--gray-200);
+    background: #fff;
+    border-radius: 8px;
+    font-family:'DM Sans', sans-serif; font-weight:600; font-size:13px;
+    color: var(--gray-500);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .view-btn.active-view{
+    border-color: var(--teal);
+    background: var(--teal-pale);
+    color: var(--teal);
+  }
+
+  /* ===== Mapa del proyecto ===== */
+  .map-scroll{
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+    padding: 6px;
+  }
+  .map-scroll svg{ display:block; }
+
+  .lot-rect{
+    stroke: rgba(15,34,64,0.25);
+    stroke-width: 1;
+    transition: filter 0.12s ease;
+  }
+  .lot-rect.disponible{ fill: var(--teal); cursor: pointer; }
+  .lot-rect.disponible:hover{ filter: brightness(1.12); }
+  .lot-rect.vendido{ fill: var(--gray-300); cursor: not-allowed; }
+  .lot-rect.selected{ stroke: var(--gold); stroke-width: 3; fill: var(--gold); }
+
+  .lot-label{
+    font-family:'DM Mono', monospace; font-size:9px; font-weight:700;
+    fill:#fff; text-anchor: middle; dominant-baseline: middle;
+    pointer-events:none; user-select:none;
+  }
+  .lot-label.vendido-label{ fill: var(--gray-500); }
+
+  .block-label{
+    font-family:'DM Sans', sans-serif; font-size:15px; font-weight:700;
+    fill: var(--navy); text-anchor: middle; opacity:0.55;
+    pointer-events:none;
+  }
+  .area-verde-rect{ fill: var(--teal-pale); stroke: var(--teal-light); stroke-width:1; stroke-dasharray:4 3; }
+  .area-verde-label{
+    font-family:'DM Sans', sans-serif; font-size:11px; font-weight:600;
+    fill: var(--teal); text-anchor: middle; pointer-events:none;
+  }
+  .road-line{ stroke: var(--gray-300); stroke-width: 10; }
+  .road-label{
+    font-family:'DM Sans', sans-serif; font-size:11px; font-weight:700;
+    fill: var(--gray-500); text-anchor: middle; letter-spacing:0.05em;
+  }
+  .compass-label{
+    font-family:'DM Sans', sans-serif; font-size:11px; font-weight:700;
+    fill: var(--navy); text-anchor: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏡 Simulador de Pagos</h1>
+  <p>Lotificación Los Valientes · Km 151, carretera a Jiquilillo</p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <div class="card-header">📍 Ubicación y mapa de lotes</div>
+    <div class="card-body">
+
+      <div class="view-selector">
+        <button type="button" class="view-btn active-view" id="btnViewSat">🛰️ Vista satelital</button>
+        <button type="button" class="view-btn" id="btnViewLots">🗺️ Mapa de lotes</button>
+      </div>
+
+      <div id="satView">
+        <div class="loc-map">
+          <iframe
+            src="https://www.google.com/maps?q=12.700100,-87.272062&t=k&z=15&output=embed"
+            width="100%" height="240" style="border:0; display:block;"
+            allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+            title="Ubicación de Lotificación Los Valientes">
+          </iframe>
+        </div>
+        <div class="loc-address">Km 151, carretera a Jiquilillo, El Viejo, Chinandega</div>
+        <div class="loc-btns">
+          <a class="loc-btn gmaps" href="https://www.google.com/maps/dir/?api=1&destination=12.700100,-87.272062" target="_blank" rel="noopener">🗺️ Google Maps</a>
+          <a class="loc-btn waze" href="https://waze.com/ul?ll=12.700100,-87.272062&navigate=yes" target="_blank" rel="noopener">🚗 Waze</a>
+        </div>
+      </div>
+
+      <div id="lotsView" style="display:none;">
+        <div class="map-scroll" id="mapScroll"></div>
+        <div class="legend">
+          <span><i class="i-disp"></i> Disponible</span>
+          <span><i class="i-vend"></i> Vendido</span>
+        </div>
+        <div class="hint">Desliza el mapa hacia los lados para ver todos los bloques. Toca un lote en verde para simular su pago.</div>
+        <div class="lot-detail" id="lotDetail"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card" id="paramsCard" style="display:none;">
+    <div class="card-header">⚙️ Tu financiamiento</div>
+    <div class="card-body">
+
+      <div class="field">
+        <label>Prima que puedes dar (US$)</label>
+        <input type="number" id="primaIngresada" min="0" step="10" placeholder="0.00">
+        <div id="primaWarn" class="prima-warn"></div>
+        <div class="field-hint">Mínima requerida: <strong id="primaMinLabel">—</strong></div>
+      </div>
+
+      <div class="field">
+        <label>¿Cómo prefieres pagar?</label>
+        <div class="modo-selector">
+          <button type="button" class="modo-btn active-cuota" id="btnModoCuota">
+            📅 Cuota fija
+            <span class="badge">60 meses fijos</span>
+          </button>
+          <button type="button" class="modo-btn" id="btnModoMeses">
+            💰 Cuota variable
+            <span class="badge">Yo defino mi cuota</span>
+          </button>
+        </div>
+        <div class="modo-desc" id="modoDesc">
+          <strong>Cuota fija:</strong> Tu prima reduce el saldo. La cuota se calcula sobre 60 meses fijos. Más prima = menor cuota.
+        </div>
+      </div>
+
+      <div class="field" id="fieldCuotaDeseada" style="display:none;">
+        <label>Cuota mensual que puedes pagar (US$)</label>
+        <input type="number" id="cuotaDeseada" min="50" step="10" placeholder="Ej: 150">
+        <div class="field-hint">El plazo se ajusta según tu cuota</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">📈 Tu resumen financiero</div>
+    <div class="card-body">
+      <div id="emptyState" class="empty-state">
+        <div class="icon">🗺️</div>
+        <p>Toca un lote disponible en el mapa de arriba para ver tu plan de pago.</p>
+      </div>
+      <div class="kpi-grid" id="kpiGrid" style="display:none;">
+        <div class="kpi highlight">
+          <div class="kpi-label">Precio del lote</div>
+          <div class="kpi-value" id="kpiPrecio">—</div>
+          <div class="kpi-sub" id="kpiArea">—</div>
+        </div>
+        <div class="kpi"><div class="kpi-label">Tu prima</div><div class="kpi-value" id="kpiPrimaMin">—</div><div class="kpi-sub" id="kpiPrimaSub">—</div></div>
+        <div class="kpi"><div class="kpi-label">Saldo financiado</div><div class="kpi-value" id="kpiSaldo">—</div><div class="kpi-sub">A financiar</div></div>
+        <div class="kpi" id="kpiCuotaBox"><div class="kpi-label">Cuota mensual</div><div class="kpi-value" id="kpiCuota">—</div><div class="kpi-sub">Por mes</div></div>
+        <div class="kpi" id="kpiMesesBox"><div class="kpi-label">Plazo</div><div class="kpi-value" id="kpiNumCuotas">—</div><div class="kpi-sub">Meses</div></div>
+        <div class="kpi"><div class="kpi-label">Total a pagar</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-sub">Prima + cuotas</div></div>
+        <div class="ahorro-box" id="kpiAhorro">
+          <div class="k" id="kpiAhorroLabel">Ahorro</div>
+          <div class="v" id="kpiAhorroVal">—</div>
+          <div class="s" id="kpiAhorroSub">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <a class="cta" id="waCta" href="#" target="_blank" rel="noopener" aria-disabled="true">
+        📲 Enviar esta cotización por WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <div class="footer-info">
+    <div class="fi-title">Lotificación Los Valientes</div>
+    ✅ Reserva tu lugar hoy<br>
+    ✅ Elige la ubicación que más te guste<br>
+    ✅ Asegura tu futuro antes que alguien más lo haga<br><br>
+    📍 <a href="https://maps.app.goo.gl/62iFMaBdgx1r4R6V8" target="_blank" rel="noopener">Km 151, carretera a Jiquilillo, El Viejo, Chinandega</a><br>
+    📲 <a href="tel:81768816">8176-8816</a>
+  </div>
+
+  <p class="disclaimer">Esta simulación es informativa y puede variar según disponibilidad. Confirma los detalles finales con nuestro equipo antes de reservar.</p>
+
+</div>
+
+<script>
+// Datos actualizados según "Lista de Precios Los Valientes — Final 2026" (21 jul 2026).
+// El área (a) conserva la medición exacta del plano mosaico; el precio (p) es el de la lista vigente.
+const LOTS = [
+  {b:"A",l:1,a:312.5,p:23450,pm:500,c:391},
+  {b:"A",l:2,a:312.5,p:23450,pm:500,c:391},
+  {b:"A",l:3,a:250.41,p:16480,pm:500,c:275},
+  {b:"A",l:4,a:251.25,p:14480,pm:300,c:242},
+  {b:"A",l:5,a:250.83,p:14480,pm:300,c:242},
+  {b:"A",l:6,a:250.39,p:14480,pm:300,c:242},
+  {b:"A",l:7,a:251.21,p:14480,pm:300,c:242},
+  {b:"A",l:8,a:250.76,p:14480,pm:300,c:242},
+  {b:"A",l:9,a:250.29,p:14480,pm:300,c:242},
+  {b:"A",l:10,a:251.1,p:14480,pm:300,c:242},
+  {b:"A",l:11,a:250.49,p:14480,pm:300,c:242},
+  {b:"A",l:12,a:250.9,p:14480,pm:300,c:242},
+  {b:"A",l:13,a:250.89,p:12980,pm:300,c:217},
+  {b:"A",l:14,a:250.84,p:12980,pm:300,c:217},
+  {b:"A",l:15,a:250.77,p:12980,pm:300,c:217},
+  {b:"A",l:16,a:250.67,p:12980,pm:300,c:217},
+  {b:"A",l:17,a:250.66,p:12980,pm:300,c:217},
+  {b:"A",l:18,a:250.42,p:12980,pm:300,c:217},
+  {b:"A",l:19,a:250.27,p:12980,pm:300,c:217},
+  {b:"A",l:20,a:250.79,p:12980,pm:300,c:217},
+  {b:"A",l:21,a:250.43,p:12980,pm:300,c:217},
+  {b:"A",l:22,a:250.13,p:12980,pm:300,c:217},
+  {b:"A",l:23,a:250.55,p:13980,pm:300,c:233},
+  {b:"A",l:24,a:250.73,p:13980,pm:300,c:233},
+  {b:"A",l:25,a:238.31,p:15980,pm:300,c:267},
+  {b:"A",l:26,a:215.01,p:15980,pm:300,c:267},
+  {b:"B",l:1,a:250,p:19980,pm:500,c:333},
+  {b:"B",l:2,a:250,p:19980,pm:500,c:333},
+  {b:"B",l:3,a:250,p:19980,pm:500,c:333},
+  {b:"B",l:4,a:250,p:19980,pm:500,c:333},
+  {b:"B",l:5,a:250,p:19980,pm:500,c:333},
+  {b:"B",l:6,a:250,p:13000,pm:500,c:210},
+  {b:"B",l:7,a:250,p:14500,pm:300,c:242},
+  {b:"B",l:8,a:250,p:11500,pm:300,c:190},
+  {b:"B",l:9,a:250,p:11500,pm:300,c:190},
+  {b:"B",l:10,a:250,p:11000,pm:300,c:180},
+  {b:"B",l:11,a:250,p:15590,pm:300,c:260},
+  {b:"B",l:12,a:250,p:15590,pm:300,c:260},
+  {b:"B",l:13,a:250,p:11000,pm:300,c:180},
+  {b:"B",l:14,a:250,p:11500,pm:300,c:190},
+  {b:"B",l:15,a:250,p:14500,pm:300,c:242},
+  {b:"B",l:16,a:250,p:14500,pm:300,c:242},
+  {b:"B",l:17,a:250,p:16000,pm:500,c:267},
+  {b:"C",l:1,a:253.71,p:13192.92,pm:500,c:215},
+  {b:"C",l:2,a:253.71,p:13192.92,pm:500,c:215},
+  {b:"C",l:3,a:287.58,p:20650,pm:500,c:345},
+  {b:"C",l:4,a:250,p:19980,pm:500,c:333},
+  {b:"C",l:5,a:250,p:19980,pm:500,c:333},
+  {b:"C",l:6,a:250,p:15980,pm:500,c:267},
+  {b:"C",l:7,a:250,p:11500,pm:300,c:190},
+  {b:"C",l:8,a:250,p:11500,pm:300,c:190},
+  {b:"C",l:9,a:250,p:11500,pm:300,c:190},
+  {b:"C",l:10,a:250,p:13980,pm:300,c:233},
+  {b:"C",l:11,a:250,p:15590,pm:300,c:260},
+  {b:"C",l:12,a:268.63,p:15980,pm:500,c:267},
+  {b:"C",l:13,a:269,p:14980,pm:500,c:250},
+  {b:"C",l:14,a:269.36,p:13425,pm:500,c:224},
+  {b:"C",l:15,a:269.73,p:13447,pm:500,c:225},
+  {b:"C",l:16,a:270.1,p:13463,pm:500,c:225},
+  {b:"C",l:17,a:270.4,p:14561,pm:500,c:243},
+  {b:"D",l:1,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:2,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:3,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:4,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:5,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:6,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:7,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:8,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:9,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:10,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:11,a:393.06,p:21980,pm:300,c:367},
+  {b:"D",l:12,a:255.99,p:13980,pm:300,c:233},
+  {b:"D",l:13,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:14,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:15,a:250,p:13980,pm:300,c:233},
+  {b:"D",l:16,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:17,a:250,p:14480,pm:300,c:242},
+  {b:"D",l:18,a:250,p:10000,pm:300,c:165},
+  {b:"D",l:19,a:250,p:14480,pm:300,c:242},
+  {b:"E",l:1,a:265.69,p:14980,pm:500,c:250},
+  {b:"E",l:2,a:250,p:14480,pm:300,c:242},
+  {b:"E",l:3,a:250,p:12980,pm:300,c:217},
+  {b:"E",l:4,a:250,p:11980,pm:300,c:200},
+  {b:"E",l:5,a:250,p:11980,pm:300,c:200},
+  {b:"E",l:6,a:250,p:11980,pm:300,c:200},
+  {b:"E",l:7,a:238.46,p:13980,pm:300,c:233},
+  {b:"E",l:8,a:200.15,p:11980,pm:300,c:200},
+  {b:"E",l:9,a:291.16,p:16480,pm:500,c:275},
+  {b:"E",l:10,a:265.33,p:13980,pm:500,c:233},
+  {b:"E",l:11,a:265.69,p:13980,pm:500,c:233},
+  {b:"E",l:12,a:265.69,p:13980,pm:500,c:233},
+];
+
+// ===== LOTES VENDIDOS / RESERVADOS =====
+// Actualizado según el plano mosaico vigente (actualizado al 7 de agosto de 2026).
+// Estos lotes ya no están disponibles y no se pueden seleccionar en el mapa.
+const VENDIDOS = [
+  "A-8", "A-10", "A-24",
+  "B-6", "B-7", "B-8", "B-9", "B-10", "B-13", "B-14", "B-16", "B-17",
+  "C-1", "C-2", "C-6", "C-7", "C-8", "C-9", "C-14", "C-15", "C-16", "C-17",
+  "D-18",
+  "E-1", "E-2",
+];
+
+const PLAZO_FIJO = 60;
+const WHATSAPP_NUMBER = '50581768816';
+
+function esVendido(lot){
+  return VENDIDOS.includes(`${lot.b}-${lot.l}`);
+}
+
+let currentLot = null, currentModo = 'cuota';
+
+function fmt(n){
+  if(n === undefined || n === null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+// ===== MAPA DEL PROYECTO (basado en el plano mosaico) =====
+// Cada bloque se dibuja como una cuadrícula de lotes ordenados por número.
+// Bloque A corre en una sola columna de abajo (lote 1) hacia arriba (lote 26), como en el plano real.
+const MAP_LAYOUT = {
+  A: { cols:2,  cellW:53, cellH:37, gap:2, x:20,  y:20,  reverseRows:true },
+  D: { cols:10, cellW:27, cellH:95, gap:2, x:130, y:20  },
+  E: { cols:6,  cellW:40, cellH:95, gap:3, x:450, y:20  },
+  B: { cols:9,  cellW:30, cellH:95, gap:2, x:130, y:335 },
+  C: { cols:9,  cellW:30, cellH:95, gap:2, x:450, y:335 },
+};
+
+function buildMap(){
+  const byBlock = {};
+  LOTS.forEach(lot => { (byBlock[lot.b] = byBlock[lot.b] || []).push(lot); });
+
+  let svgParts = [];
+
+  Object.keys(MAP_LAYOUT).forEach(b => {
+    const cfg = MAP_LAYOUT[b];
+    const lots = byBlock[b] || [];
+    const rows = Math.ceil(lots.length / cfg.cols);
+
+    lots.forEach((lot, idx) => {
+      let row = Math.floor(idx / cfg.cols);
+      const col = idx % cfg.cols;
+      if(cfg.reverseRows) row = rows - 1 - row;
+
+      const x = cfg.x + col * (cfg.cellW + cfg.gap);
+      const y = cfg.y + row * (cfg.cellH + cfg.gap);
+      const vendido = esVendido(lot);
+      const cls = vendido ? 'vendido' : 'disponible';
+      const onclick = vendido ? '' : ` onclick="selectLoteFromMap('${b}',${lot.l})"`;
+      const titleTxt = vendido ? `Bloque ${b}, Lote ${lot.l} — Vendido` : `Bloque ${b}, Lote ${lot.l} — $${fmt(lot.p)}`;
+
+      svgParts.push(`<g id="lot-${b}${lot.l}" class="lot-rect ${cls}"${onclick}>` +
+        `<title>${titleTxt}</title>` +
+        `<rect x="${x}" y="${y}" width="${cfg.cellW}" height="${cfg.cellH}" rx="3"/>` +
+        `<text class="lot-label${vendido ? ' vendido-label' : ''}" x="${x + cfg.cellW/2}" y="${y + cfg.cellH/2}">${lot.l}</text>` +
+      `</g>`);
+    });
+
+    // Etiqueta del bloque
+    const bw = cfg.cols * (cfg.cellW + cfg.gap) - cfg.gap;
+    const bh = rows * (cfg.cellH + cfg.gap) - cfg.gap;
+    svgParts.push(`<text class="block-label" x="${cfg.x + bw/2}" y="${cfg.y - 6}">BLOQUE ${b}</text>`);
+  });
+
+  // Áreas verdes (entre D/E arriba y B/C abajo, como en el plano)
+  svgParts.push(`<rect class="area-verde-rect" x="130" y="228" width="288" height="92" rx="6"/>`);
+  svgParts.push(`<text class="area-verde-label" x="274" y="278">🌳 ÁREA VERDE</text>`);
+  svgParts.push(`<rect class="area-verde-rect" x="450" y="228" width="258" height="92" rx="6"/>`);
+  svgParts.push(`<text class="area-verde-label" x="579" y="278">🌳 ÁREA VERDE</text>`);
+
+  // Vías de acceso
+  svgParts.push(`<line class="road-line" x1="20" y1="550" x2="756" y2="550"/>`);
+  svgParts.push(`<text class="road-label" x="200" y="530">ACCESO 1</text>`);
+  svgParts.push(`<text class="road-label" x="430" y="530">ACCESO 2</text>`);
+  svgParts.push(`<text class="road-label" x="660" y="530">ACCESO 3</text>`);
+  svgParts.push(`<text class="road-label" x="30" y="554" text-anchor="start">◀ JIQUILILLO</text>`);
+  svgParts.push(`<text class="road-label" x="836" y="554" text-anchor="end">CHINANDEGA ▶</text>`);
+
+  // Brújula
+  svgParts.push(`<g>` +
+    `<circle cx="806" cy="35" r="16" style="fill:none;stroke:var(--gray-300);stroke-width:1.5"/>` +
+    `<line x1="806" y1="22" x2="806" y2="48" style="stroke:var(--gray-300);stroke-width:1.5"/>` +
+    `<text class="compass-label" x="806" y="16">N</text>` +
+  `</g>`);
+
+  const svg = `<svg viewBox="0 0 860 585" width="860" height="585" xmlns="http://www.w3.org/2000/svg">${svgParts.join('')}</svg>`;
+  document.getElementById('mapScroll').innerHTML = svg;
+}
+
+function selectLoteFromMap(b, l){
+  const lot = LOTS.find(x => x.b === b && x.l === l);
+  if(!lot || esVendido(lot)) return;
+  selectLote(lot);
+}
+
+function selectLote(lot){
+  currentLot = lot;
+  document.querySelectorAll('.lot-rect').forEach(g => g.classList.remove('selected'));
+  const rectEl = document.getElementById(`lot-${lot.b}${lot.l}`);
+  if(rectEl) rectEl.classList.add('selected');
+
+  const detail = document.getElementById('lotDetail');
+  detail.style.display = 'block';
+  detail.innerHTML = `Bloque <b>${lot.b}</b> · Lote <b>${lot.l}</b> · Área <b>${lot.a.toLocaleString('en-US')} m²</b> · Precio <b>$${fmt(lot.p)}</b>`;
+
+  document.getElementById('paramsCard').style.display = 'block';
+  const primaInput = document.getElementById('primaIngresada');
+  if(!primaInput.value || parseFloat(primaInput.value) < lot.pm){
+    primaInput.value = lot.pm;
+  }
+  document.getElementById('primaMinLabel').textContent = `US$ ${fmt(lot.pm)}`;
+
+  updateSimulation();
+}
+
+function setModo(modo){
+  currentModo = modo;
+  const btnCuota = document.getElementById('btnModoCuota');
+  const btnMeses = document.getElementById('btnModoMeses');
+  const fieldCD = document.getElementById('fieldCuotaDeseada');
+  const modoDesc = document.getElementById('modoDesc');
+
+  if(modo === 'cuota'){
+    btnCuota.className = 'modo-btn active-cuota';
+    btnMeses.className = 'modo-btn';
+    fieldCD.style.display = 'none';
+    modoDesc.innerHTML = '<strong>Cuota fija:</strong> Tu prima reduce el saldo. La cuota se calcula sobre 60 meses fijos. Más prima = menor cuota.';
+  } else {
+    btnCuota.className = 'modo-btn';
+    btnMeses.className = 'modo-btn active-meses';
+    fieldCD.style.display = 'block';
+    modoDesc.innerHTML = '<strong>Cuota variable:</strong> Tú defines cuánto puedes pagar al mes. El plazo se ajusta según tu cuota.';
+    if(currentLot){
+      const cd = document.getElementById('cuotaDeseada');
+      if(!cd.value){
+        const primaVal = parseFloat(document.getElementById('primaIngresada').value) || currentLot.pm;
+        const saldo = currentLot.p - primaVal;
+        cd.value = Math.ceil(saldo / PLAZO_FIJO);
+      }
+    }
+  }
+  updateSimulation();
+}
+
+document.getElementById('btnModoCuota').addEventListener('click', () => setModo('cuota'));
+document.getElementById('btnModoMeses').addEventListener('click', () => setModo('meses'));
+document.getElementById('primaIngresada').addEventListener('input', updateSimulation);
+document.getElementById('cuotaDeseada').addEventListener('input', updateSimulation);
+
+function setView(view){
+  const btnSat = document.getElementById('btnViewSat');
+  const btnLots = document.getElementById('btnViewLots');
+  const satView = document.getElementById('satView');
+  const lotsView = document.getElementById('lotsView');
+
+  if(view === 'sat'){
+    btnSat.className = 'view-btn active-view';
+    btnLots.className = 'view-btn';
+    satView.style.display = 'block';
+    lotsView.style.display = 'none';
+  } else {
+    btnSat.className = 'view-btn';
+    btnLots.className = 'view-btn active-view';
+    satView.style.display = 'none';
+    lotsView.style.display = 'block';
+  }
+}
+document.getElementById('btnViewSat').addEventListener('click', () => setView('sat'));
+document.getElementById('btnViewLots').addEventListener('click', () => setView('lots'));
+
+function clearResults(){
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('kpiGrid').style.display = 'none';
+  const cta = document.getElementById('waCta');
+  cta.setAttribute('aria-disabled', 'true');
+  cta.href = '#';
+}
+
+function updateSimulation(){
+  if(!currentLot) return;
+  const lot = currentLot;
+  const primaInput = document.getElementById('primaIngresada');
+  const primaVal = parseFloat(primaInput.value) || 0;
+  const warnEl = document.getElementById('primaWarn');
+  const primaOk = primaVal >= lot.pm;
+
+  if(primaVal > 0){
+    if(primaOk){
+      warnEl.className = 'prima-warn ok';
+      warnEl.textContent = '✅ Prima aceptada';
+    } else {
+      warnEl.className = 'prima-warn err';
+      warnEl.textContent = `❌ Mínimo: US$ ${fmt(lot.pm)}`;
+    }
+  } else {
+    warnEl.className = 'prima-warn';
+    warnEl.style.display = 'none';
+  }
+
+  const primaEfectiva = primaOk ? primaVal : lot.pm;
+  const saldoFinanciado = lot.p - primaEfectiva;
+
+  let cuotaMensual, numCuotas;
+  const cuotaBase = lot.c;
+
+  if(currentModo === 'cuota'){
+    if(saldoFinanciado <= 0){ cuotaMensual = 0; numCuotas = 0; }
+    else {
+      cuotaMensual = Math.ceil(saldoFinanciado / PLAZO_FIJO);
+      numCuotas = PLAZO_FIJO;
+    }
+  } else {
+    const cuotaDeseadaVal = parseFloat(document.getElementById('cuotaDeseada').value) || 0;
+    if(cuotaDeseadaVal > 0 && saldoFinanciado > 0){
+      cuotaMensual = cuotaDeseadaVal;
+      numCuotas = Math.ceil(saldoFinanciado / cuotaMensual);
+    } else {
+      cuotaMensual = Math.ceil(saldoFinanciado / PLAZO_FIJO);
+      numCuotas = PLAZO_FIJO;
+    }
+  }
+
+  const ahorroEnCuota = cuotaBase - cuotaMensual;
+  const ahorroEnMeses = PLAZO_FIJO - numCuotas;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('kpiGrid').style.display = 'grid';
+
+  const totalPagar = primaEfectiva + (cuotaMensual * numCuotas);
+
+  document.getElementById('kpiPrecio').textContent = `$${fmt(lot.p)}`;
+  document.getElementById('kpiArea').textContent = `${lot.a.toLocaleString('en-US')} m² · Bloque ${lot.b}, Lote ${lot.l}`;
+  document.getElementById('kpiPrimaMin').textContent = `$${fmt(primaEfectiva)}`;
+  document.getElementById('kpiPrimaSub').textContent = `Mínima: $${fmt(lot.pm)}`;
+  document.getElementById('kpiSaldo').textContent = `$${fmt(saldoFinanciado)}`;
+  document.getElementById('kpiCuota').textContent = `$${fmt(cuotaMensual)}`;
+  document.getElementById('kpiNumCuotas').textContent = `${numCuotas}`;
+  document.getElementById('kpiTotal').textContent = `$${fmt(totalPagar)}`;
+
+  const kpiAhorro = document.getElementById('kpiAhorro');
+  if(currentModo === 'cuota' && ahorroEnCuota > 0.5){
+    kpiAhorro.style.display = 'block';
+    document.getElementById('kpiAhorroLabel').textContent = '💰 Ahorro en cuota vs. precio base';
+    document.getElementById('kpiAhorroVal').textContent = `-$${fmt(ahorroEnCuota)}/mes`;
+    document.getElementById('kpiAhorroSub').textContent = `Cuota base era $${fmt(cuotaBase)} — ahorras $${fmt(ahorroEnCuota)} cada mes`;
+  } else if(currentModo === 'meses' && ahorroEnMeses > 0){
+    kpiAhorro.style.display = 'block';
+    document.getElementById('kpiAhorroLabel').textContent = '⏱ Ahorro en plazo vs. 60 meses';
+    document.getElementById('kpiAhorroVal').textContent = `-${ahorroEnMeses} meses`;
+    document.getElementById('kpiAhorroSub').textContent = `Terminas ${ahorroEnMeses} mes${ahorroEnMeses===1?'':'es'} antes con cuota de $${fmt(cuotaMensual)}`;
+  } else {
+    kpiAhorro.style.display = 'none';
+  }
+
+  const msg = `Hola 👋, hice una simulación en su calculadora: Bloque ${lot.b}, Lote ${lot.l} (${lot.a.toLocaleString('en-US')} m²), precio $${fmt(lot.p)}. Prima de $${fmt(primaEfectiva)}, a ${numCuotas} meses, cuota de $${fmt(cuotaMensual)}/mes. ¿Me pueden confirmar disponibilidad?`;
+  const cta = document.getElementById('waCta');
+  cta.removeAttribute('aria-disabled');
+  cta.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+}
+
+// Inicializar: dibujar el mapa y dejar el resumen en blanco hasta que elijan un lote
+buildMap();
+clearResults();
+</script>
+
+</body>
+</html>
