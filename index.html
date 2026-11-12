@@ -104,7 +104,8 @@
   .legend span{ display:inline-flex; align-items:center; gap:5px; }
   .legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
   .legend .i-disp{ background: var(--teal); }
-  .legend .i-vend{ background: var(--gray-300); }
+  .legend .i-vend{ background: #f59e0b; }
+  .legend .i-res{ background: #2488f3; }
 
   .lot-detail{
     margin-top:12px;
@@ -259,8 +260,9 @@
   .lot-dot.disponible{ cursor: pointer; }
   .lot-dot.disponible .lot-dot-ring{ fill: rgba(20,166,140,0.55); stroke: var(--teal); }
   .lot-dot.disponible:hover .lot-dot-ring{ fill: rgba(20,166,140,0.85); filter: brightness(1.1); }
-  .lot-dot.vendido{ cursor: not-allowed; }
-  .lot-dot.vendido .lot-dot-ring{ fill: rgba(255,140,0,0.55); stroke: rgba(180,90,0,0.8); }
+  .lot-dot.vendido, .lot-dot.reservado{ cursor: not-allowed; }
+  .lot-dot.vendido .lot-dot-ring{ fill: rgba(255,140,0,0.62); stroke: rgba(180,90,0,0.9); }
+  .lot-dot.reservado .lot-dot-ring{ fill: rgba(36,136,243,0.62); stroke: rgba(20,104,201,0.95); }
   .lot-dot.selected .lot-dot-ring{ fill: var(--gold); stroke: #fff; stroke-width: 2.5; r: 15; }
   .lot-dot-label{
     font-family:'DM Mono', monospace; font-size:11px; font-weight:700;
@@ -324,8 +326,9 @@
       <div class="legend">
         <span><i class="i-disp"></i> Disponible</span>
         <span><i class="i-vend"></i> Vendido</span>
+        <span><i class="i-res"></i> Reservado</span>
       </div>
-      <div class="hint">Toca un lote en verde sobre el plano para simular su pago.</div>
+      <div class="hint">Toca un lote disponible en verde sobre el plano para simular su pago.</div>
       <div class="lot-detail" id="lotDetail"></div>
     </div>
   </div>
@@ -512,27 +515,39 @@ const LOTS = [
   {b:"E",l:12,a:265.69,p:13980,pm:500,c:233},
 ];
 
-// ===== LOTES VENDIDOS / RESERVADOS =====
-// Actualizado según el plano mosaico vigente (actualizado al 7 de agosto de 2026).
-// Estos lotes ya no están disponibles y no se pueden seleccionar en el mapa.
+// ===== DISPONIBILIDAD SEGÚN PLANO MOSAICO =====
+// Estados revisados con el plano actualizado al 3 de noviembre de 2026.
 const VENDIDOS = [
-  // Bloque A — vendido: 8, 10, 24 · reservado: 3
-  "A-3", "A-8", "A-10", "A-24",
-  // Bloque B — vendido: 6,7,8,9,10,13,14,16,17 · reservado: 12
-  "B-6", "B-7", "B-8", "B-9", "B-10", "B-12", "B-13", "B-14", "B-16", "B-17",
-  // Bloque C — vendido: 1,2,6,7,8,9,14,15,16,17 · reservado: 5,12,13
-  "C-1", "C-2", "C-5", "C-6", "C-7", "C-8", "C-9", "C-12", "C-13", "C-14", "C-15", "C-16", "C-17",
-  // Bloque D — vendido: 18
+  // Bloque A
+  "A-8", "A-10", "A-11", "A-24",
+  // Bloque B
+  "B-1", "B-6", "B-7", "B-8", "B-9", "B-10", "B-13", "B-14", "B-16", "B-17",
+  // Bloque C
+  "C-1", "C-2", "C-5", "C-6", "C-7", "C-8", "C-9", "C-12", "C-14", "C-15", "C-16", "C-17",
+  // Bloque D
   "D-18",
-  // Bloque E — vendido: 1, 2 · reservado: 4
-  "E-1", "E-2", "E-4",
+  // Bloque E
+  "E-1", "E-2",
 ];
 
+const RESERVADOS = [
+  // Bloque A
+  "A-1", "A-2", "A-9", "A-18", "A-21", "A-25", "A-26",
+  // Bloque B
+  "B-2", "B-4",
+  // Bloque D
+  "D-6", "D-8", "D-11", "D-15",
+  // Bloque E
+  "E-5", "E-9",
+];
 const PLAZO_FIJO = 60;
 const WHATSAPP_NUMBER = '50581768816';
 
-function esVendido(lot){
-  return VENDIDOS.includes(`${lot.b}-${lot.l}`);
+function estadoLote(lot){
+  const key = `${lot.b}-${lot.l}`;
+  if(VENDIDOS.includes(key)) return 'vendido';
+  if(RESERVADOS.includes(key)) return 'reservado';
+  return 'disponible';
 }
 
 let currentLot = null, currentModo = 'cuota';
@@ -557,15 +572,17 @@ function buildMap(){
     const pos = LOT_COORDS[key];
     if(!pos) return;
     const [x, y] = pos;
-    const vendido = esVendido(lot);
-    const cls = vendido ? 'vendido' : 'disponible';
-    const onclick = vendido ? '' : ` onclick="selectLoteFromMap('${lot.b}',${lot.l})"`;
-    const titleTxt = vendido ? `Bloque ${lot.b}, Lote ${lot.l} — No disponible` : `Bloque ${lot.b}, Lote ${lot.l} — $${fmt(lot.p)}`;
+    const estado = estadoLote(lot);
+    const disponible = estado === 'disponible';
+    const onclick = disponible ? ` onclick="selectLoteFromMap('${lot.b}',${lot.l})"` : '';
+    const titleTxt = disponible
+      ? `Bloque ${lot.b}, Lote ${lot.l} — Disponible — $${fmt(lot.p)}`
+      : `Bloque ${lot.b}, Lote ${lot.l} — ${estado === 'vendido' ? 'Vendido' : 'Reservado'}`;
 
-    svgParts.push(`<g id="lot-${lot.b}${lot.l}" class="lot-dot ${cls}"${onclick}>` +
+    svgParts.push(`<g id="lot-${lot.b}${lot.l}" class="lot-dot ${estado}"${onclick}>` +
       `<title>${titleTxt}</title>` +
       `<circle class="lot-dot-ring" cx="${x}" cy="${y}" r="13"/>` +
-      (vendido ? '' : `<text class="lot-dot-label" x="${x}" y="${y}">${lot.l}</text>`) +
+      (disponible ? `<text class="lot-dot-label" x="${x}" y="${y}">${lot.l}</text>` : '') +
     `</g>`);
   });
 
@@ -575,7 +592,7 @@ function buildMap(){
 
 function selectLoteFromMap(b, l){
   const lot = LOTS.find(x => x.b === b && x.l === l);
-  if(!lot || esVendido(lot)) return;
+  if(!lot || estadoLote(lot) !== 'disponible') return;
   selectLote(lot);
 }
 
